@@ -5,6 +5,7 @@ use futures::{Stream, StreamExt};
 use metrics::{register_histogram, Histogram};
 use value::Value;
 use vector_buffers::topology::channel::{self, LimitedReceiver, LimitedSender};
+use vector_common::{config::ComponentKey, internal_event::Source};
 #[cfg(test)]
 use vector_core::event::{into_event_stream, EventStatus};
 use vector_core::{
@@ -46,20 +47,29 @@ impl Builder {
         }
     }
 
-    pub fn add_output(&mut self, output: Output) -> LimitedReceiver<EventArray> {
+    pub fn add_output(
+        &mut self,
+        output: Output,
+        source_key: ComponentKey,
+    ) -> LimitedReceiver<EventArray> {
         match output.port {
             None => {
                 let (inner, rx) = Inner::new_with_buffer(
                     self.buf_size,
                     DEFAULT_OUTPUT.to_owned(),
                     self.lag_time.clone(),
+                    Source(Some(source_key.into_id().into())),
                 );
                 self.inner = Some(inner);
                 rx
             }
             Some(name) => {
-                let (inner, rx) =
-                    Inner::new_with_buffer(self.buf_size, name.clone(), self.lag_time.clone());
+                let (inner, rx) = Inner::new_with_buffer(
+                    self.buf_size,
+                    name.clone(),
+                    self.lag_time.clone(),
+                    Source(Some(source_key.into_id().into())),
+                );
                 self.named_inners.insert(name, inner);
                 rx
             }
@@ -92,9 +102,11 @@ impl SourceSender {
         }
     }
 
+    #[cfg(test)]
     pub fn new_with_buffer(n: usize) -> (Self, LimitedReceiver<EventArray>) {
         let lag_time = Some(register_histogram!(LAG_TIME_NAME));
-        let (inner, rx) = Inner::new_with_buffer(n, DEFAULT_OUTPUT.to_owned(), lag_time);
+        let (inner, rx) =
+            Inner::new_with_buffer(n, DEFAULT_OUTPUT.to_owned(), lag_time, Source(None));
         (
             Self {
                 inner: Some(inner),
@@ -162,7 +174,7 @@ impl SourceSender {
     ) -> impl Stream<Item = EventArray> + Unpin {
         // The lag_time parameter here will need to be filled in if this function is ever used for
         // non-test situations.
-        let (inner, recv) = Inner::new_with_buffer(100, name.clone(), None);
+        let (inner, recv) = Inner::new_with_buffer(100, name.clone(), None, Source(None));
         let recv = recv.into_stream().map(move |mut events| {
             events.iter_events_mut().for_each(|mut event| {
                 let metadata = event.metadata_mut();
@@ -243,6 +255,7 @@ impl Inner {
         n: usize,
         output: String,
         lag_time: Option<Histogram>,
+        source: Source,
     ) -> (Self, LimitedReceiver<EventArray>) {
         let (tx, rx) = channel::limited(n);
         (
@@ -250,9 +263,10 @@ impl Inner {
                 inner: tx,
                 output: output.clone(),
                 lag_time,
-                events_sent: register!(EventsSent::from(internal_event::Output(Some(
-                    output.into()
-                )))),
+                events_sent: register!(EventsSent::from((
+                    internal_event::Output(Some(output.into())),
+                    source,
+                ))),
             },
             rx,
         )
