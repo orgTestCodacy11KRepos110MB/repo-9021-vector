@@ -114,6 +114,7 @@ impl IntegrationTest {
         if let Some(env_vars) = &self.config.env {
             command.envs(env_vars);
         }
+        // TODO: Export all config variables, not just `version`
         if let Some(version) = config.get("version") {
             let version_env = format!(
                 "{}_VERSION",
