@@ -531,7 +531,7 @@ mod integration_tests {
         let log_type = random_string(10);
         let (sink, healthcheck) = config_build(
             &log_type,
-            "/home/vector/scripts/integration/chronicleauth.json",
+            "/home/vector/scripts/integration/chronicle/auth.json",
         )
         .await
         .expect("Building sink failed");
@@ -564,7 +564,7 @@ mod integration_tests {
         // Test with an auth file that doesnt match the public key sent to the dummy chronicle server.
         let sink = config_build(
             &log_type,
-            "/home/vector/scripts/integration/invalidchronicleauth.json",
+            "/home/vector/scripts/integration/chronicle/invalidauth.json",
         )
         .await;
 
@@ -580,7 +580,7 @@ mod integration_tests {
         let log_type = "INVALID";
         let (sink, healthcheck) = config_build(
             log_type,
-            "/home/vector/scripts/integration/chronicleauth.json",
+            "/home/vector/scripts/integration/chronicle/auth.json",
         )
         .await
         .expect("Building sink failed");
