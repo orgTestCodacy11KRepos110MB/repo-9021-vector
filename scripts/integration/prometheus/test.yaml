@@ -5,4 +5,5 @@ args:
 - '::prometheus::'
 
 matrix:
-- version: ['1.8']
+- prometheus: ['v2.33.4']
+  influxdb: ['1.8']

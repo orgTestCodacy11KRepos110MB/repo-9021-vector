@@ -6,11 +6,11 @@ services:
     depends_on:
     - nginx-proxy
   nginx:
-    image: docker.io/nginx:${NGINX_VERSION}
+    image: docker.io/nginx:${MATRIX_VERSION}
     volumes:
     - ../../../tests/data/nginx/:/etc/nginx:ro
   nginx-proxy:
-    image: docker.io/nginx:${NGINX_VERSION}
+    image: docker.io/nginx:${MATRIX_VERSION}
     volumes:
     - ../../../tests/data/nginx/:/etc/nginx:ro
 

@@ -10,7 +10,6 @@ use super::{config::Environment, config::IntegrationTestConfig, state::EnvsDir};
 use crate::app::CommandExt as _;
 
 pub struct IntegrationTest {
-    integration: String,
     environment: String,
     test_dir: PathBuf,
     config: IntegrationTestConfig,
@@ -24,10 +23,9 @@ impl IntegrationTest {
         let environment = environment.into();
         let (test_dir, config) = IntegrationTestConfig::load(&integration)?;
         let envs_dir = EnvsDir::new(&integration);
-        let runner = IntegrationTestRunner::new(integration.clone())?;
+        let runner = IntegrationTestRunner::new(integration)?;
 
         Ok(Self {
-            integration,
             environment,
             test_dir,
             config,
@@ -95,7 +93,7 @@ impl IntegrationTest {
         Ok(())
     }
 
-    fn run_compose(&self, action: &str, args: &[&'static str], config: &Environment) -> Result<()> {
+    fn run_compose(&self, action: &str, args: &[&'static str], matrix: &Environment) -> Result<()> {
         let compose_path: PathBuf = [&self.test_dir, Path::new("compose.yaml")].iter().collect();
         let compose_file = dunce::canonicalize(compose_path)
             .context("Could not canonicalize docker compose path")?
@@ -114,13 +112,10 @@ impl IntegrationTest {
         if let Some(env_vars) = &self.config.env {
             command.envs(env_vars);
         }
-        // TODO: Export all config variables, not just `version`
-        if let Some(version) = config.get("version") {
-            let version_env = format!(
-                "{}_VERSION",
-                self.integration.replace('-', "_").to_uppercase()
-            );
-            command.env(version_env, version);
+
+        for (var, value) in matrix {
+            let env = format!("MATRIX_{}", var.replace('-', "_").to_uppercase());
+            command.env(env, value);
         }
 
         waiting!("{action} environment {}", self.environment);
